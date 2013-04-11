@@ -1,11 +1,18 @@
 #!/usr/bin/python
+
+"""The script obtains prices and flight information for a given
+   input (departure, arrival airports and date), outputs this
+   data to the console and writes it to a csv file."""
+
+__author__ = "Ingvaras Merkys"
+
 import json
 import urllib2
 import re
 import sys
 import time
 
-# Global vars
+# Global vars:
 AUTOSUGGEST_URL = "http://www.skyscanner.net/dataservices/geo/v1.0/autosuggest/uk/en/"
 # e. g. http://www.skyscanner.net/dataservices/geo/v1.0/autosuggest/uk/en/edinb
 SKYSCANNER_URL = "http://www.skyscanner.net/flights/"
@@ -23,12 +30,12 @@ def main(argv):
 
    place_id_from, place_id_to, name_from, name_to = get_codes(input_from, input_to)
 
-#   testjuly = map (lambda x: len(x) == 1 and '13070'+x or '1307'+x, [ str(i+1) for i in range(31) ])
-#   for date in testjuly:
+#  testjuly = map (lambda x: len(x) == 1 and '13070'+x or '1307'+x, [ str(i+1) for i in range(31) ])
+#  for date in testjuly:
    session_key = get_session_key(place_id_from, place_id_to, date)
 
    for attempt in range(3):
-      # if script is run repeatedly every once in a while an empty html is returned
+      # if script is run repeatedly sometimes an empty html is returned
       try:
          response = urllib2.urlopen(ROUTEDATA_URL + session_key)
          html = response.read()
@@ -41,14 +48,14 @@ def main(argv):
       else:
          break
    else:
-      sys.exit(3)
+      sys.exit(1)
 
    query = data['Query']
 
    if data['Stats']['OutboundLegStats']['TotalCount'] == 0:
       print "No flights found from", name_from, "to", name_to
       show_suggestions(query['OriginPlace'], query['DestinationPlace'], date)
-      sys.exit(3)
+      sys.exit(2)
 
    stations = data['Stations']
    quotes = data['Quotes']
@@ -57,44 +64,55 @@ def main(argv):
 
    print "Results for flight from", name_from, "to", name_to
    print "Outbound date:", re.split('T', query['OutboundDate'])[0]
-   print "Cheapest Journey:", cheapest_price, "GBP"
+   print "Cheapest Journey:", cheapest_price, "RMB"
 
-   f = open(place_id_from + '-' + place_id_to + '-' + date + '.csv','w')
+   # f = open(place_id_from + '-' + place_id_to + '-' + date + '.csv','w')
 
-   for leg in data['OutboundItineraryLegs']:
-      leg_price = get_leg_price(leg['PricingOptions'], quotes)
-      depart_time = leg['DepartureDateTime'].replace("T", " ")
-      arrive_time = leg['ArrivalDateTime'].replace("T", " ")
-      duration = leg['Duration']
-      carrier_names = get_carrier_names(leg['MarketingCarrierIds'], carriers)[1]
+   # for leg in data['OutboundItineraryLegs']:
+   #    leg_price = get_leg_price(leg['PricingOptions'], quotes)
+   #    depart_time = leg['DepartureDateTime'].replace("T", " ")
+   #    arrive_time = leg['ArrivalDateTime'].replace("T", " ")
+   #    duration = leg['Duration']
+   #    carrier_names = get_carrier_names(leg['MarketingCarrierIds'], carriers)[1]
 
-      print "\n\tPrice:", leg_price, "GBP"
-      print "\tDeparting:", depart_time
-      print "\tArriving:", arrive_time
-      print "\tDuration:", duration/60, "h", duration%60, "min"
-      print "\tCarriers:", carrier_names
+   #    print "\n\tPrice:", leg_price, "GBP"
+   #    print "\tDeparting:", depart_time
+   #    print "\tArriving:", arrive_time
+   #    print "\tDuration:", duration/60, "h", duration%60, "min"
+   #    print "\tCarriers:", carrier_names
+   #    print "\t# of stops: ", leg['StopsCount']
 
-      row = str(leg_price) + "\t" + depart_time + "\t" + arrive_time + "\t" + str(duration) + "\t" + carrier_names + "\t"
+   #    stop_ids = leg.get('StopIds', [])
+   #    stop_ids_string = ", ".join([ get_station_name(stop_id, stations) for stop_id in stop_ids ])
+   #    print "\t\t", stop_ids_string
 
-      print "\t# of stops: ", leg['StopsCount']
-      stop_ids = leg.get('StopIds', [])
-      for stop_id in stop_ids:
-         print "\t\t", get_station_name(stop_id, stations)
-         row += get_station_name(stop_id, stations) + ", "
-      f.write(row + "\n")
+   #    row = str(leg_price) + "\t" + depart_time + "\t" + arrive_time + "\t" + str(duration) + "\t" + carrier_names + "\t" + stop_ids_string
 
-#Functions
+   #    f.write(row + "\n")
+
+# Functions
+
 def get_codes(input_from, input_to):
    """Returns place id codes and names, e. g. ("EDI", "KUN", "Edinburgh", "Kaunas")"""
    try:
-      place_id_from = json.load(urllib2.urlopen(AUTOSUGGEST_URL + input_from))[0]['PlaceId']
-      name_from = json.load(urllib2.urlopen(AUTOSUGGEST_URL + input_from))[0]['PlaceName']
-      place_id_to = json.load(urllib2.urlopen(AUTOSUGGEST_URL + input_to))[0]['PlaceId']
-      name_to = json.load(urllib2.urlopen(AUTOSUGGEST_URL + input_to))[0]['PlaceName']
+      i = 0
+      autosuggest_json_from = json.load(urllib2.urlopen(AUTOSUGGEST_URL + input_from))
+      if len(autosuggest_json_from[0]['PlaceId']) == 4:
+      # for cases where the first result is abstract (e. g. Glasgow (Any))
+         i = 1
+      place_id_from = autosuggest_json_from[i]['PlaceId']
+      name_from = autosuggest_json_from[i]['PlaceName']
+
+      j = 0
+      autosuggest_json_to = json.load(urllib2.urlopen(AUTOSUGGEST_URL + input_to))
+      if len(autosuggest_json_to[0]['PlaceId']) == 4:
+         j = 1
+      place_id_to = autosuggest_json_to[j]['PlaceId']
+      name_to = autosuggest_json_to[j]['PlaceName']
    except IndexError:
       print "No code found for:"
       print input_from, "AND/OR", input_to
-      sys.exit(1)
+      sys.exit(3)
    return (place_id_from, place_id_to, name_from, name_to)
 
 def get_session_key(place_id_from, place_id_to, date):
@@ -108,7 +126,7 @@ def get_session_key(place_id_from, place_id_to, date):
       session_key = re.findall(regex, html)[0]
    except IndexError:
       print "No data found for this date"
-      sys.exit(2)
+      sys.exit(4)
    return session_key
 
 def show_suggestions(from_id, to_id, date):
@@ -124,11 +142,10 @@ def show_suggestions(from_id, to_id, date):
          print "Try airports: ", suggest_places_string[:-2]
    except (KeyError, IndexError):
       print "Suggestions unavailable"
-      print SUGGESTIONS_URL + "&fp=" + from_id + "&tp=" + to_id + "&dd=20" + date
 
 def get_station_name(station_id, stations):
-   """Returns station's (stop in the connected flight) name,
-      e. g. "London Heathrow""""
+   """Returns the name of the (intermediate) station,
+      e. g. "London Heathrow" """
    for station in stations:
       if station['Id'] == station_id:
          return station['Name']
@@ -142,7 +159,7 @@ def get_leg_price(pricing, quotes):
    return min(prices)
 
 def get_quote_price(quote_ids, quotes):
-   """Finds quotes by quote id and returns their sum"""
+   """Finds quotes by quote id and returns their price sum"""
    price = 0;
    for quote_id in quote_ids:
       for quote in quotes:
@@ -151,7 +168,7 @@ def get_quote_price(quote_ids, quotes):
    return price
 
 def get_carrier_names(carrier_ids, carriers):
-   """returns a tuple (list, string) with carrier names
+   """Returns a tuple (list, string) with carrier names
       e.g. (["airBaltic", "KLM"], "airBaltic, KLM")"""
    carrier_names = []
    carrier_names_string = ""
@@ -162,7 +179,7 @@ def get_carrier_names(carrier_ids, carriers):
    return (carrier_names, carrier_names_string[:-2])
 
 def get_carrier_name(carrier_id, carriers):
-   """returns carrier name as string"""
+   """Returns carrier name by id"""
    for carrier in carriers:
       if carrier['Id'] == carrier_id:
          return carrier['Name']
@@ -172,7 +189,7 @@ if __name__ == "__main__":
    if len(sys.argv) == 4:
       main(sys.argv[1:])
    else:
-      print "Enter arguments in this way:"
-      print "python skyscanner.py {departure airport} {arrival airport} {departure date (yy/mm/dd)}"
-      print "e. g. python skyscanner.py \"glasgow prestwick\" kaunas 13/07/21"
+      print "Enter arguments in this way:\n"
+      print "python skyscanner.py {departure airport} {arrival airport} {departure date (yy/mm/dd)}\n\n"
+      print "e. g. python skyscanner.py \"glasgow prestwick\" kaunas 13/07/21\n"
       sys.exit()
