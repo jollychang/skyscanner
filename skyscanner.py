@@ -54,8 +54,9 @@ def main(argv):
 
    if data['Stats']['OutboundLegStats']['TotalCount'] == 0:
       print "No flights found from", name_from, "to", name_to
-      show_suggestions(query['OriginPlace'], query['DestinationPlace'], date)
-      sys.exit(2)
+      return 0
+      #show_suggestions(query['OriginPlace'], query['DestinationPlace'], date)
+      #sys.exit(2)
 
    stations = data['Stations']
    quotes = data['Quotes']
@@ -65,6 +66,7 @@ def main(argv):
    print "Results for flight from", name_from, "to", name_to
    print "Outbound date:", re.split('T', query['OutboundDate'])[0]
    print "Cheapest Journey:", cheapest_price, "RMB"
+   return cheapest_price
 
    # f = open(place_id_from + '-' + place_id_to + '-' + date + '.csv','w')
 
